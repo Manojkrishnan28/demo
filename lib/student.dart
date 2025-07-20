@@ -6,93 +6,196 @@ class StudentApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Student List',
+      title: 'Student List App',
+      theme: ThemeData(
+        primarySwatch: Colors.teal,
+        useMaterial3: true,
+      ),
+      home: StudentHomePage(),
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.indigo),
-      home: StudentListScreen(),
     );
   }
 }
 
-class StudentListScreen extends StatefulWidget {
-  @override
-  _StudentListScreenState createState() => _StudentListScreenState();
+class Student {
+  String name;
+  String id;
+  String course;
+
+  Student({required this.name, required this.id, required this.course});
 }
 
-class _StudentListScreenState extends State<StudentListScreen> {
-  final List<Map<String, String>> _students = [];
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _rollController = TextEditingController();
+class StudentHomePage extends StatefulWidget {
+  @override
+  _StudentHomePageState createState() => _StudentHomePageState();
+}
 
-  void _addStudent() {
+class _StudentHomePageState extends State<StudentHomePage> {
+  final List<Student> _students = [];
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _idController = TextEditingController();
+  final TextEditingController _courseController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<Student> _filteredStudents = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_filterList);
+  }
+
+  void _filterList() {
+    String query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredStudents = _students
+          .where((student) =>
+              student.name.toLowerCase().contains(query) ||
+              student.id.toLowerCase().contains(query) ||
+              student.course.toLowerCase().contains(query))
+          .toList();
+    });
+  }
+
+  void _addOrEditStudent({int? index}) {
     String name = _nameController.text.trim();
-    String roll = _rollController.text.trim();
-    if (name.isEmpty || roll.isEmpty) return;
+    String id = _idController.text.trim();
+    String course = _courseController.text.trim();
+
+    if (name.isEmpty || id.isEmpty || course.isEmpty) return;
 
     setState(() {
-      _students.add({'name': name, 'roll': roll});
+      if (index == null) {
+        _students.add(Student(name: name, id: id, course: course));
+      } else {
+        _students[index] = Student(name: name, id: id, course: course);
+      }
+      _filteredStudents = _students;
+      _nameController.clear();
+      _idController.clear();
+      _courseController.clear();
     });
+  }
 
-    _nameController.clear();
-    _rollController.clear();
+  void _editStudent(int index) {
+    final student = _students[index];
+    _nameController.text = student.name;
+    _idController.text = student.id;
+    _courseController.text = student.course;
+    _addOrEditStudent(index: index);
   }
 
   void _deleteStudent(int index) {
     setState(() {
       _students.removeAt(index);
+      _filteredStudents = _students;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final studentsToShow =
+        _searchController.text.isEmpty ? _students : _filteredStudents;
+
     return Scaffold(
-      appBar: AppBar(title: Text('Student List')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
+      appBar: AppBar(
+        title: Text('Student List App'),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            // Search bar
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search by Name, ID or Course',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.search),
+              ),
+            ),
+            SizedBox(height: 10),
+
+            // Form inputs
+            Row(
               children: [
-                TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(labelText: 'Student Name'),
+                Expanded(
+                  child: TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Student Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 ),
-                SizedBox(height: 8),
-                TextField(
-                  controller: _rollController,
-                  decoration: InputDecoration(labelText: 'Roll Number'),
-                  keyboardType: TextInputType.number,
-                ),
-                SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: _addStudent,
-                  icon: Icon(Icons.add),
-                  label: Text('Add Student'),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _idController,
+                    decoration: InputDecoration(
+                      labelText: 'Student ID',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          Expanded(
-            child: _students.isEmpty
-                ? Center(child: Text('No students added yet!'))
-                : ListView.builder(
-                    itemCount: _students.length,
-                    itemBuilder: (context, index) {
-                      return Card(
-                        margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        child: ListTile(
-                          title: Text(_students[index]['name'] ?? ''),
-                          subtitle: Text('Roll No: ${_students[index]['roll']}'),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteStudent(index),
+            SizedBox(height: 10),
+            TextField(
+              controller: _courseController,
+              decoration: InputDecoration(
+                labelText: 'Course',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 10),
+
+            // Add button
+            ElevatedButton.icon(
+              onPressed: () => _addOrEditStudent(),
+              icon: Icon(Icons.add),
+              label: Text('Add Student'),
+            ),
+            SizedBox(height: 10),
+
+            // Student list
+            Expanded(
+              child: studentsToShow.isEmpty
+                  ? Center(child: Text('No students found.'))
+                  : ListView.builder(
+                      itemCount: studentsToShow.length,
+                      itemBuilder: (context, index) {
+                        final student = studentsToShow[index];
+                        return Card(
+                          child: ListTile(
+                            title: Text(student.name),
+                            subtitle: Text('ID: ${student.id} | Course: ${student.course}'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.edit, color: Colors.blue),
+                                  onPressed: () {
+                                    _nameController.text = student.name;
+                                    _idController.text = student.id;
+                                    _courseController.text = student.course;
+                                    _editStudent(index);
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _deleteStudent(index),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-          )
-        ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
